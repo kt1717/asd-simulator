@@ -11,14 +11,14 @@ function quiet(){$('masking').checked=false;$('quests').checked=false;syncCondit
 $('masking').onchange=syncConditions;$('quests').onchange=syncConditions;
 $('barriers').onclick=()=>{$('masking').checked=true;$('quests').checked=true;syncConditions();};
 $('stop').onclick=quiet;
-$('support').onclick=()=>{quiet();$('condition-status').textContent='Support added: visible words, written instructions, and time to respond.';$('quest-feedback').textContent='The pens can wait. Your badge entries have been kept.';};
+$('support').onclick=()=>{quiet();$('condition-status').textContent='Support added: visible words, written instructions, and time to respond.';$('quest-feedback').textContent='The pens can wait. Your menu choices and conversation have been kept.';};
 $('sound-once').onclick=showSound;
 $('repeat').onclick=()=>{clearTimeout(coverTimer);$('sound-cover').hidden=true;clearInterval(soundTimer);if($('masking').checked)soundTimer=setInterval(showSound,6500);$('condition-status').textContent='The words are visible again. Take a moment to reread them.';};
 $('align').onclick=()=>{$('quest-card').hidden=true;$('quest-feedback').textContent='Pens lined up. Return to the conversation. Another notice may appear while side tasks are on.';};
-$('defer').onclick=()=>{$('quest-card').hidden=true;$('quest-feedback').textContent='Side task set aside for now. You can continue the badge.';};
+$('defer').onclick=()=>{$('quest-card').hidden=true;$('quest-feedback').textContent='Side task set aside for now. You can continue choosing your meal.';};
 document.addEventListener('keydown',e=>{if(e.key==='Escape')quiet();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)quiet();});
-$('badge-form').onsubmit=e=>{e.preventDefault();const correct=$('guest').value.trim().toLowerCase()==='mia'&&$('colour').value==='Blue'&&$('table').value==='3';$('task-feedback').textContent=correct?'Badge ready: Mia · Blue · Table 3. You can keep exploring the conversation.':'Check the written instruction: Mia, a blue badge, table 3. There is no time limit.';};
+
 function button(text,action,parent){const b=document.createElement('button');b.type='button';b.textContent=text;b.onclick=action;parent.append(b);return b;}
 function paragraph(text,parent){const p=document.createElement('p');p.textContent=text;parent.append(p);return p;}
 function advance(n){unlocked=Math.max(unlocked,n);renderStage(n);}
@@ -31,10 +31,42 @@ function renderStage(n){
  const panel=$('discussion');panel.replaceChildren();
  if(n===0){paragraph('What is your first impression of the pause and the question?',panel);const choices=document.createElement('div');choices.className='choices';panel.append(choices);['Rude','Uninterested','Anxious','Processing the question','Unsure'].forEach(label=>{const b=button(label,()=>{impression=label;renderStage(0);},choices);b.setAttribute('aria-pressed',String(impression===label));});paragraph(impression?'That is one interpretation, not a conclusion. What context might be missing?':'Choose an impression, then look at the same moment from both sides.',panel);button('Explore both perspectives →',()=>advance(1),panel).disabled=!impression;}
  if(n===1){paragraph('Neither person can directly see the other person’s demands or intentions. A pause or a shifting gaze can be read in different ways.',panel);button('Try repairing the exchange →',()=>advance(2),panel);}
- if(n===2){paragraph('What could the other guest say next to make the exchange easier to follow?',panel);const choices=document.createElement('div');choices.className='choices';panel.append(choices);const feedback=paragraph('Choose a response to explore its effect.',panel);const next=button('Compare with support →',()=>{quiet();advance(3);},panel);next.disabled=true;
- [['“Just hurry up.”',false],['“Are you ready yet?”',false],['“Take your time. Write Mia on a blue badge for table 3.”',true],['“Would you like me to write that down and move somewhere quieter?”',true]].forEach(([label,helpful])=>button(label,()=>{feedback.textContent=helpful?'This offers concrete information or a choice of support. Ask which support the person prefers.':'This adds pressure without resolving the ambiguous instruction. Try a more explicit or supportive response.';next.disabled=!helpful;},choices));}
- if(n===3){paragraph('The distractions are now off. Continue the same badge task. Was it easier to follow the exchange? You can turn distractions back on to compare.',panel);button('Restart the conversation',()=>{unlocked=0;impression='';renderStage(0);},panel);}
+ if(n===2){paragraph('What could the barista say next to make the exchange easier to follow?',panel);const choices=document.createElement('div');choices.className='choices';panel.append(choices);const feedback=paragraph('Choose a response to explore its effect.',panel);const next=button('Compare with support →',()=>{quiet();advance(3);},panel);next.disabled=true;
+ [['“Just hurry up.”',false],['“Are you ready yet?”',false],['“Take your time. Choose a drink and a food item, then tell me if you are eating in or taking away.”',true],['“Would you like me to write that down and move somewhere quieter?”',true]].forEach(([label,helpful])=>button(label,()=>{feedback.textContent=helpful?'This offers concrete information or a choice of support. Ask which support the person prefers.':'This adds pressure without resolving the ambiguous instruction. Try a more explicit or supportive response.';next.disabled=!helpful;},choices));}
+ if(n===3){paragraph('The distractions are now off. Continue the same ordering task. Was it easier to follow the exchange? You can turn distractions back on to compare.',panel);button('Restart the conversation',()=>{unlocked=0;impression='';resetConversation();renderStage(0);},panel);}
 }
 document.querySelectorAll('[data-stage]').forEach(b=>b.onclick=()=>renderStage(Number(b.dataset.stage)));
-$('reset').onclick=()=>{quiet();$('badge-form').reset();questCount=0;soundIndex=0;unlocked=0;impression='';$('task-feedback').textContent='You can complete this while following the conversation.';$('quest-feedback').textContent='';renderStage(0);};
+$('reset').onclick=()=>{quiet();$('order-form').reset();resetConversation();questCount=0;soundIndex=0;unlocked=0;impression='';$('task-feedback').textContent='Choose your meal, then send your order to complete the task.';$('quest-feedback').textContent='';renderStage(0);};
 renderStage(0);
+const exchanges=[
+ {barista:'Hi! How are we doing today?',reply:'I’m… deciding whether you mean my day or my order.'},
+ {barista:'Either! No rush. Have you had a chance to look?',reply:'I’m looking at the menu now.'},
+ {barista:'The usual combo is popular.',reply:'What is included in the usual combo?'},
+ {barista:'A drink and one food item. What sounds good?',reply:'I’m still choosing. Could I have a moment?'},
+ {barista:'Of course. Are you still with me?',reply:'Yes, I’m listening. I’m looking at the menu while I decide.'},
+ {barista:'Take your time. Choose a drink, a food item, and eat-in or takeaway. What would you like to order?',order:true}
+];
+let conversationStep=0,orderSent=false;
+function orderReady(){return ['drink','food','service'].every(id=>$(id).value);}
+function orderLine(){return 'I’d like a '+$('drink').value.toLowerCase()+', a '+$('food').value.toLowerCase()+', '+($('service').value==='Eat in'?'to eat in':'to take away')+', please.';}
+function message(who,words){const row=document.createElement('article');if(who==='You')row.className='you';const name=document.createElement('b');name.textContent=who;row.append(name);paragraph('“'+words+'”',row);$('dialogue').append(row);$('dialogue').scrollTop=$('dialogue').scrollHeight;}
+function updateDraft(){
+ const turn=exchanges[conversationStep];
+ $('send-reply').disabled=orderSent||!!(turn.order&&!orderReady());
+ $('send-reply').textContent=turn.order?'Send order':'Send reply';
+ $('reply-draft').textContent=orderSent?'Your order has been sent.':turn.order?(orderReady()?orderLine():'Choose your drink, food, and service before sending your order.'):turn.reply;
+ $('reply-status').textContent=orderSent?'Task complete.':turn.order?'This draft updates when you change the menu. It is only sent when you press Send order.':'Press Send reply to say this line and continue.';
+}
+function resetConversation(){conversationStep=0;orderSent=false;$('dialogue').replaceChildren();['drink','food','service'].forEach(id=>$(id).disabled=false);message('Barista',exchanges[0].barista);updateDraft();}
+$('send-reply').onclick=()=>{
+ if(orderSent)return;
+ const turn=exchanges[conversationStep];
+ if(turn.order&&!orderReady())return;
+ message('You',turn.order?orderLine():turn.reply);
+ if(turn.order){orderSent=true;message('Barista','Thank you. That is one '+$('drink').value.toLowerCase()+' and one '+$('food').value.toLowerCase()+', '+($('service').value==='Eat in'?'to eat in':'to take away')+'.');$('task-feedback').textContent='Task complete: you selected your meal and sent your full order.';['drink','food','service'].forEach(id=>$(id).disabled=true);}
+ else{conversationStep++;message('Barista',exchanges[conversationStep].barista);}
+ updateDraft();
+};
+['drink','food','service'].forEach(id=>$(id).onchange=()=>{updateDraft();$('task-feedback').textContent=orderReady()?'Meal selected. Continue the conversation, then press Send order to complete the task.':'Choose a drink, food, and eat-in or takeaway.';});
+$('order-form').onsubmit=e=>e.preventDefault();
+resetConversation();
