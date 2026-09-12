@@ -2,19 +2,19 @@
 const $ = id => document.getElementById(id);
 let stage=0, unlocked=0, impression='', soundIndex=0, questCount=0;
 let soundTimer=null, coverTimer=null, questTimer=null;
-const sounds=[['CHATTER','Two people talking nearby'],['SCRAAAPE','A chair moves across the floor'],['HA HA HA','Laughter from the next group'],['CLICK · CLICK','Someone clicks a pen']];
+const sounds=[['CHATTER','Two people talking nearby'],['SCRAAAPE','A chair moves across the floor'],['HA HA HA','Laughter from the next group'],['CLINK · CLINK','Cups and saucers at the counter']];
 function clearTimers(){clearInterval(soundTimer);clearTimeout(coverTimer);clearInterval(questTimer);soundTimer=coverTimer=questTimer=null;}
-function showSound(){clearTimeout(coverTimer);const sound=sounds[soundIndex++%sounds.length];$('sound-word').textContent=sound[0];$('sound-detail').textContent=sound[1];$('sound-cover').hidden=false;coverTimer=setTimeout(()=>$('sound-cover').hidden=true,3500);}
-function showQuest(){questCount++;$('quest-number').textContent=String(questCount).padStart(2,'0');$('quest-title').textContent=questCount===1?'The pens are not lined up.':'One pen is out of line again.';$('quest-card').hidden=false;}
-function syncConditions(){clearTimers();$('sound-cover').hidden=true;$('quest-card').hidden=true;if($('masking').checked){showSound();soundTimer=setInterval(showSound,6500);}if($('quests').checked){showQuest();questTimer=setInterval(showQuest,9000);}$('condition-status').textContent=($('masking').checked||$('quests').checked)?'Distractions are active. Your main task stays the same. Stop or press Esc at any time.':'Words are visible. Side-task notices are paused.';}
+function showSound(){clearTimeout(coverTimer);const sound=sounds[soundIndex++%sounds.length];$('sound-word').textContent=sound[0];$('sound-detail').textContent=sound[1];$('sound-cover').hidden=false;$('order-sound-word').textContent=sound[0];$('order-sound-detail').textContent=sound[1];$('order-sound').hidden=false;coverTimer=setTimeout(()=>{$('sound-cover').hidden=true;$('order-sound').hidden=true;},3500);}
+function showQuest(){questCount++;$('quest-number').textContent=String(questCount).padStart(2,'0');$('quest-title').textContent=questCount===1?'The sugar packets are not lined up.':'One sugar packet is turned the wrong way again.';$('quest-card').hidden=false;}
+function syncConditions(){clearTimers();$('sound-cover').hidden=true;$('order-sound').hidden=true;$('quest-card').hidden=true;if($('masking').checked){showSound();soundTimer=setInterval(showSound,6500);}if($('quests').checked){showQuest();questTimer=setInterval(showQuest,9000);}$('condition-status').textContent=($('masking').checked||$('quests').checked)?'Distractions are active. Your main task stays the same. Stop or press Esc at any time.':'Words are visible. Side-task notices are paused.';}
 function quiet(){$('masking').checked=false;$('quests').checked=false;syncConditions();}
 $('masking').onchange=syncConditions;$('quests').onchange=syncConditions;
 $('barriers').onclick=()=>{$('masking').checked=true;$('quests').checked=true;syncConditions();};
 $('stop').onclick=quiet;
-$('support').onclick=()=>{quiet();$('condition-status').textContent='Support added: visible words, written instructions, and time to respond.';$('quest-feedback').textContent='The pens can wait. Your menu choices and conversation have been kept.';};
+$('support').onclick=()=>{quiet();$('condition-status').textContent='Support added: visible words, written instructions, and time to respond.';$('quest-feedback').textContent='The sugar packets can wait. Your menu choices and conversation have been kept.';};
 $('sound-once').onclick=showSound;
-$('repeat').onclick=()=>{clearTimeout(coverTimer);$('sound-cover').hidden=true;clearInterval(soundTimer);if($('masking').checked)soundTimer=setInterval(showSound,6500);$('condition-status').textContent='The words are visible again. Take a moment to reread them.';};
-$('align').onclick=()=>{$('quest-card').hidden=true;$('quest-feedback').textContent='Pens lined up. Return to the conversation. Another notice may appear while side tasks are on.';};
+$('repeat').onclick=()=>{clearTimeout(coverTimer);$('sound-cover').hidden=true;$('order-sound').hidden=true;clearInterval(soundTimer);if($('masking').checked)soundTimer=setInterval(showSound,6500);$('condition-status').textContent='The words are visible again. Take a moment to reread them.';};
+$('align').onclick=()=>{$('quest-card').hidden=true;$('quest-feedback').textContent='Sugar packets lined up. Return to the conversation. Another notice may appear while side tasks are on.';};
 $('defer').onclick=()=>{$('quest-card').hidden=true;$('quest-feedback').textContent='Side task set aside for now. You can continue choosing your meal.';};
 document.addEventListener('keydown',e=>{if(e.key==='Escape')quiet();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)quiet();});
@@ -39,12 +39,9 @@ document.querySelectorAll('[data-stage]').forEach(b=>b.onclick=()=>renderStage(N
 $('reset').onclick=()=>{quiet();$('order-form').reset();resetConversation();questCount=0;soundIndex=0;unlocked=0;impression='';$('task-feedback').textContent='Choose your meal, then send your order to complete the task.';$('quest-feedback').textContent='';renderStage(0);};
 renderStage(0);
 const exchanges=[
- {barista:'Hi! How are we doing today?',reply:'I’m… deciding whether you mean my day or my order.'},
- {barista:'Either! No rush. Have you had a chance to look?',reply:'I’m looking at the menu now.'},
- {barista:'The usual combo is popular.',reply:'What is included in the usual combo?'},
- {barista:'A drink and one food item. What sounds good?',reply:'I’m still choosing. Could I have a moment?'},
- {barista:'Of course. Are you still with me?',reply:'Yes, I’m listening. I’m looking at the menu while I decide.'},
- {barista:'Take your time. Choose a drink, a food item, and eat-in or takeaway. What would you like to order?',order:true}
+ {barista:'How are we doing today?',reply:'I’m… deciding whether you mean my day or my order.'},
+ {barista:'No worries. The usual is fine.',reply:'Which drink is the usual one?'},
+ {barista:'Take your time. What would you like to order?',order:true}
 ];
 let conversationStep=0,orderSent=false;
 function orderReady(){return ['drink','food','service'].every(id=>$(id).value);}
@@ -57,7 +54,7 @@ function updateDraft(){
  $('reply-draft').textContent=orderSent?'Your order has been sent.':turn.order?(orderReady()?orderLine():'Choose your drink, food, and service before sending your order.'):turn.reply;
  $('reply-status').textContent=orderSent?'Task complete.':turn.order?'This draft updates when you change the menu. It is only sent when you press Send order.':'Press Send reply to say this line and continue.';
 }
-function resetConversation(){conversationStep=0;orderSent=false;$('dialogue').replaceChildren();['drink','food','service'].forEach(id=>$(id).disabled=false);message('Barista',exchanges[0].barista);updateDraft();}
+function resetConversation(){conversationStep=0;orderSent=false;$('task-feedback').textContent='Choose your meal, then send your order to complete the task.';$('dialogue').replaceChildren();['drink','food','service'].forEach(id=>$(id).disabled=false);message('Barista',exchanges[0].barista);updateDraft();}
 $('send-reply').onclick=()=>{
  if(orderSent)return;
  const turn=exchanges[conversationStep];
